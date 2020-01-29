@@ -28,7 +28,7 @@ static void *lept_context_push(lept_context *c, size_t size) {
         if (c->size == 0)
             c->size = LEPT_PARSE_STACK_INIT_SIZE;
         while (c->top + size >= c->size)
-            c->size += c->size >> 1;  /* c->size * 1.5 */
+            c->size += c->size >> 1U;  /* c->size * 1.5 */
         c->stack = (char *) realloc(c->stack, c->size);
     }
     ret = c->stack + c->top;
@@ -142,8 +142,45 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
             case '\0':
                 c->top = head;
                 return LEPT_PARSE_MISS_QUOTATION_MARK;
+            case '\\': // escape
+                switch (*p++) {
+                    case '"':
+                        PUTC(c, '\"');
+                        break;
+                    case '\\':
+                        PUTC(c, '\\');
+                        break;
+                    case '/':
+                        PUTC(c, '/');
+                        break;
+                    case 'b':
+                        PUTC(c, '\b');
+                        break;
+                    case 'f':
+                        PUTC(c, '\f');
+                        break;
+                    case 'n':
+                        PUTC(c, '\n');
+                        break;
+                    case 'r':
+                        PUTC(c, '\r');
+                        break;
+                    case 't':
+                        PUTC(c, '\t');
+                        break;
+                    case 'u': /* unimplemented*/
+                    default:
+                        c->top = head;
+                        return LEPT_PARSE_INVALID_STRING_ESCAPE;
+                }
+                break;
             default:
-                PUTC(c, ch);
+                if (ch >= '\x20') {
+                    PUTC(c, ch);
+                } else {
+                    c->top = head;
+                    return LEPT_PARSE_INVALID_STRING_CHAR;
+                }
         }
     }
 }
