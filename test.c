@@ -30,7 +30,7 @@ static int test_pass = 0;
 static void test_access_null() {
     lept_value v;
     lept_init(&v);
-    lept_set_boolean(&v, 0);
+    lept_set_string(&v, "wtf", 3);
     lept_set_null(&v);
     EXPECT_EQ_INT(LEPT_NULL, lept_get_type(&v));
     lept_free(&v);
@@ -39,6 +39,7 @@ static void test_access_null() {
 static void test_access_boolean() {
     lept_value v;
     lept_init(&v);
+    lept_set_string(&v, "wtf", 3);
     lept_set_boolean(&v, 0);
     EXPECT_FALSE(lept_get_boolean(&v));
     lept_set_boolean(&v, 1);
@@ -49,6 +50,7 @@ static void test_access_boolean() {
 static void test_access_number() {
     lept_value v;
     lept_init(&v);
+    lept_set_string(&v, "wtf", 3);
     lept_set_number(&v, 123.456);
     EXPECT_EQ_DOUBLE(123.456, lept_get_number(&v));
     lept_free(&v);
@@ -82,7 +84,7 @@ static void test_access() {
     do {\
         lept_value v;\
         lept_init(&v);\
-        lept_set_number(&v, 0);\
+        lept_set_string(&v, "wtf", 3);\
         EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
         EXPECT_EQ_INT(typ, lept_get_type(&v));\
         lept_free(&v);\
@@ -98,6 +100,7 @@ static void test_parse_literal() {
     do {\
         lept_value v;\
         lept_init(&v);\
+        lept_set_string(&v, "wtf", 3);\
         EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
         EXPECT_EQ_INT(LEPT_NUMBER, lept_get_type(&v));\
         EXPECT_EQ_DOUBLE(n, lept_get_number(&v));\
