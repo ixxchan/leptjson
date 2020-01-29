@@ -136,6 +136,26 @@ static void test_parse_number() {
     TEST_NUMBER(-1.7976931348623157e+308, "-1.7976931348623157e+308");
 }
 
+#define TEST_STRING(str, json)\
+    do {\
+        lept_value v;\
+        lept_init(&v);\
+        EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
+        EXPECT_EQ_INT(LEPT_STRING, lept_get_type(&v));\
+        EXPECT_EQ_STRING(str, lept_get_string(&v), lept_get_string_length(&v));\
+        lept_free(&v);\
+    } while (0)
+
+static void test_parse_string() {
+    TEST_STRING("", "\"\"");
+    TEST_STRING("Hello", "\"Hello\"");
+#if 0
+    TEST_STRING("Hello\nWorld", "\"Hello\\nWorld\"");
+    TEST_STRING("Hello\0World", "\"Hello\0World\"");
+    TEST_STRING("\" \\ / \b \f \n \r \t", "\"\\\" \\\\ \\/ \\b \\f \\n \\r \\t\"");
+#endif
+}
+
 #define TEST_ERROR(error, json)\
     do {\
         lept_value v;\
@@ -188,6 +208,7 @@ static void test_parse() {
     test_parse_root_not_singular();
     test_parse_number();
     test_parse_number_too_big();
+    test_parse_string();
 }
 
 /* test parsing end */

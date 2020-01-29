@@ -23,7 +23,8 @@ enum {
     LEPT_PARSE_EXPECT_VALUE, // only whitespaces
     LEPT_PARSE_INVALID_VALUE,
     LEPT_PARSE_ROOT_NOT_SINGULAR, // non-whitespace occurs after a value is parsed
-    LEPT_PARSE_NUMBER_TOO_BIG
+    LEPT_PARSE_NUMBER_TOO_BIG,
+    LEPT_PARSE_MISS_QUOTATION_MARK
 };
 
 /* Parse string json into v. If fail, set v to LEPT_NULL */
