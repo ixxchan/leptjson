@@ -54,12 +54,14 @@ int lept_parse(lept_value *v, const char *json) {
     int ret;
 
     assert(v != NULL);
+    assert(json != NULL);
     c.json = json;
     v->type = LEPT_NULL;
     lept_parse_whitespace(&c);
     if ((ret = lept_parse_value(&c, v)) == LEPT_PARSE_OK) {
         lept_parse_whitespace(&c);
         if (*c.json) {
+            v->type = LEPT_NULL;
             ret = LEPT_PARSE_ROOT_NOT_SINGULAR;
         }
     }
