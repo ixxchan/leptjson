@@ -8,7 +8,7 @@
 #define EXPECT(c, ch) do { assert(*(c)->json == (ch)); (c)->json++; } while(0)
 #define ISDIGIT(ch)         ((ch) >= '0' && (ch) <= '9')
 #define ISDIGIT1TO9(ch)     ((ch) >= '1' && (ch) <= '9')
-#define PASS_DIGITS(c) do { while (ISDIGIT(*(c)->json)) { (c)->json++;} } while(0)
+#define PASS_DIGITS(p) do { while (ISDIGIT(*(p))) { (p)++;} } while(0)
 
 typedef struct {
     const char *json;
@@ -45,49 +45,50 @@ static int lept_parse_literal(lept_context *c, lept_value *v, const char *litera
  * exp = ("e" / "E") ["-" / "+"] 1*digit
  * */
 static int lept_parse_number(lept_context *c, lept_value *v) {
-    const char *start = c->json;
+    const char *p = c->json;
 
     /* validate number begin */
     /* negative */
-    if (*c->json == '-') {
-        c->json++;
+    if (*p == '-') {
+        p++;
     }
 
     /* int part */
-    if (ISDIGIT1TO9(*c->json)) {
-        c->json++;
-        PASS_DIGITS(c);
-    } else if (*c->json == '0') {
-        c->json++;
+    if (ISDIGIT1TO9(*p)) {
+        p++;
+        PASS_DIGITS(p);
+    } else if (*p == '0') {
+        p++;
     } else {
         return LEPT_PARSE_INVALID_VALUE;
     }
 
     /* frac part */
-    if (*c->json == '.') {
-        c->json++;
-        if (!ISDIGIT(*c->json)) {
+    if (*p == '.') {
+        p++;
+        if (!ISDIGIT(*p)) {
             return LEPT_PARSE_INVALID_VALUE;
         }
-        c->json++;
-        PASS_DIGITS(c);
+        p++;
+        PASS_DIGITS(p);
     }
 
     /* exp part */
-    if (*c->json == 'e' || *c->json == 'E') {
-        c->json++;
-        if (*c->json == '+' || *c->json == '-') {
-            c->json++;
+    if (*p == 'e' || *p == 'E') {
+        p++;
+        if (*p == '+' || *p == '-') {
+            p++;
         }
-        if (!ISDIGIT(*c->json)) {
+        if (!ISDIGIT(*p)) {
             return LEPT_PARSE_INVALID_VALUE;
         }
-        c->json++;
-        PASS_DIGITS(c);
+        p++;
+        PASS_DIGITS(p);
     }
     /* validate number end */
 
-    v->n = strtod(start, NULL);
+    v->n = strtod(c->json, NULL);
+    c->json = p;
     if (errno == ERANGE && (v->n == HUGE_VAL || v->n == -HUGE_VAL)) {
         v->type = LEPT_NULL;
         return LEPT_PARSE_NUMBER_TOO_BIG;
