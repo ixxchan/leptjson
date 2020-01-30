@@ -84,7 +84,6 @@ static void test_access() {
     do {\
         lept_value v;\
         lept_init(&v);\
-        lept_set_string(&v, "wtf", 3);\
         EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
         EXPECT_EQ_INT(typ, lept_get_type(&v));\
         lept_free(&v);\
@@ -100,7 +99,6 @@ static void test_parse_literal() {
     do {\
         lept_value v;\
         lept_init(&v);\
-        lept_set_string(&v, "wtf", 3);\
         EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
         EXPECT_EQ_INT(LEPT_NUMBER, lept_get_type(&v));\
         EXPECT_EQ_DOUBLE(n, lept_get_number(&v));\

@@ -243,7 +243,12 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
 
 static int lept_parse_value(lept_context *c, lept_value *v);
 
-#define RET_ARRAY_ERROR(ret) do { c->top = head; return ret; } while(0)
+#define RET_ARRAY_ERROR(ret)\
+    do {\
+        assert((c->top - head) % sizeof(lept_value) == 0);\
+        while(c->top != head) lept_free((lept_value *)lept_context_pop(c, sizeof(lept_value)));\
+        return ret;\
+    } while(0)
 
 static int lept_parse_array(lept_context *c, lept_value *v) {
     size_t size = 0, head = c->top;
@@ -335,6 +340,11 @@ void lept_free(lept_value *v) {
     assert(v != NULL);
     if (v->type == LEPT_STRING) {
         free(v->u.s.s);
+    } else if (v->type == LEPT_ARRAY) {
+        for (int i = 0; i < v->u.a.size; ++i) {
+            lept_free(&v->u.a.e[i]);
+        }
+        free(v->u.a.e);
     }
     v->type = LEPT_NULL;
 }
