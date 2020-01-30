@@ -21,8 +21,8 @@ static int test_pass = 0;
 #define EXPECT_EQ_STRING(expect, actual, actual_len)\
     EXPECT_EQ_BASE(sizeof(expect) -1 == (actual_len) && memcmp(expect, actual, actual_len) == 0, expect, actual, "%s")
 #define EXPECT_EQ_INT(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%d")
-#define EXPECT_EQ_SIZE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%zu")
-#define EXPECT_EQ_DOUBLE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), expect, actual, "%.17g")
+#define EXPECT_EQ_SIZE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (size_t)(expect), actual, "%zu")
+#define EXPECT_EQ_DOUBLE(expect, actual) EXPECT_EQ_BASE((expect) == (actual), (double)(expect), actual, "%.17g")
 #define EXPECT_TRUE(actual) EXPECT_EQ_BASE((actual) != 0, "true", "false", "%s")
 #define EXPECT_FALSE(actual) EXPECT_EQ_BASE((actual) == 0, "false", "true", "%s")
 
@@ -162,6 +162,42 @@ static void test_parse_string() {
     TEST_STRING("\xF0\x9D\x84\x9E", "\"\\ud834\\udd1e\"");  /* G clef sign U+1D11E */
 }
 
+static void test_parse_array() {
+    lept_value v;
+
+    lept_init(&v);
+    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, "[ ]"));
+    EXPECT_EQ_INT(LEPT_ARRAY, lept_get_type(&v));
+    EXPECT_EQ_SIZE(0, lept_get_array_size(&v));
+    lept_free(&v);
+
+    lept_init(&v);
+    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, "[ null , false , true , 123 , \"abc\" ]"));
+    EXPECT_EQ_INT(LEPT_ARRAY, lept_get_type(&v));
+    EXPECT_EQ_SIZE(5, lept_get_array_size(&v));
+    EXPECT_EQ_INT(LEPT_NULL, lept_get_type(lept_get_array_element(&v, 0)));
+    EXPECT_EQ_INT(LEPT_FALSE, lept_get_type(lept_get_array_element(&v, 1)));
+    EXPECT_EQ_INT(LEPT_TRUE, lept_get_type(lept_get_array_element(&v, 2)));
+    EXPECT_EQ_DOUBLE(123, lept_get_number(lept_get_array_element(&v, 3)));
+    EXPECT_EQ_STRING("abc", lept_get_string(lept_get_array_element(&v, 4)), 3);
+
+    lept_free(&v);
+
+    lept_init(&v);
+    EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, "  [ [ ] , [ 0 ] , [ 0 , 1 ] , [ 0 , 1 , 2 ] ] "));
+    EXPECT_EQ_INT(LEPT_ARRAY, lept_get_type(&v));
+    EXPECT_EQ_SIZE(4, lept_get_array_size(&v));
+    for (int i = 0; i < 4; ++i) {
+        lept_value *p;
+        p = lept_get_array_element(&v, i);
+        EXPECT_EQ_SIZE(i, lept_get_array_size(p));
+        for (int j = 0; j < i; ++j) {
+            EXPECT_EQ_DOUBLE(j, lept_get_number(lept_get_array_element(p, j)));
+        }
+    }
+    lept_free(&v);
+}
+
 #define TEST_ERROR(error, json)\
     do {\
         lept_value v;\
@@ -252,14 +288,18 @@ static void test_parse() {
     test_parse_expect_value();
     test_parse_invalid_value();
     test_parse_root_not_singular();
+
     test_parse_number();
     test_parse_number_too_big();
+
     test_parse_string();
     test_parse_missing_quotation_mark();
     test_parse_invalid_string_escape();
     test_parse_invalid_string_char();
     test_parse_invalid_unicode_hex();
     test_parse_invalid_unicode_surrogate();
+
+    test_parse_array();
 }
 
 /* test parsing end */
