@@ -14,5 +14,6 @@ jobs:
       - name: test
         run: cd build && ./leptjson_test
       - name: test_leak
-        run: cd build && valgrind --leak-check=full  ./leptjson_test
-
+        run: |
+            sudo apt install valgrind
+            cd build && valgrind --leak-check=full  ./leptjson_test
