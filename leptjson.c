@@ -162,7 +162,7 @@ static void lept_encode_utf8(lept_context *c, unsigned u) {
     }
 }
 
-#define STRING_ERROR(ret) do { c->top = head; return ret; } while(0)
+#define RET_STRING_ERROR(ret) do { c->top = head; return ret; } while(0)
 #define IS_SURROGATE_H(u) ((u) >= 0xD800 && (u) <= 0xDBFF)
 #define IS_SURROGATE_L(u) ((u) >= 0xDC00 && (u) <= 0xDFFF)
 
@@ -181,7 +181,7 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
                 c->json = p;
                 return LEPT_PARSE_OK;
             case '\0':
-                STRING_ERROR(LEPT_PARSE_MISS_QUOTATION_MARK);
+                RET_STRING_ERROR(LEPT_PARSE_MISS_QUOTATION_MARK);
             case '\\': // escape
                 switch (*p++) {
                     case '"':
@@ -210,38 +210,79 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
                         break;
                     case 'u':
                         if ((p = lept_parse_hex4(p, &u)) == NULL) {
-                            STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
+                            RET_STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
                         }
                         if (IS_SURROGATE_H(u)) {
                             H = u;
                             if (*p++ != '\\' || *p++ != 'u') { /* expect low surrogate, but it ends */
-                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
+                                RET_STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
                             }
                             if ((p = lept_parse_hex4(p, &L)) == NULL) {
-                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
+                                RET_STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
                             }
                             if (!IS_SURROGATE_L(L)) {
-                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
+                                RET_STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
                             }
                             u = 0x10000 + (H - 0xD800) * 0x400 + (L - 0xDC00);
                         }
                         lept_encode_utf8(c, u);
                         break;
                     default:
-                        STRING_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE);
+                        RET_STRING_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE);
                 }
                 break;
             default: // unescaped
                 if (ch >= '\x20') {
                     PUTC(c, ch);
                 } else {
-                    STRING_ERROR(LEPT_PARSE_INVALID_STRING_CHAR);
+                    RET_STRING_ERROR(LEPT_PARSE_INVALID_STRING_CHAR);
                 }
         }
     }
 }
 
-/* value = null / false / true / number / string */
+static int lept_parse_value(lept_context *c, lept_value *v);
+
+#define RET_ARRAY_ERROR(ret) do { c->top = head; return ret; } while(0)
+
+static int lept_parse_array(lept_context *c, lept_value *v) {
+    size_t size = 0, head = c->top;
+    int ret;
+    EXPECT(c, '[');
+    lept_parse_whitespace(c);
+    if (*c->json == ']') {
+        c->json++;
+        v->type = LEPT_ARRAY;
+        v->u.a.size = 0;
+        v->u.a.e = NULL;
+        return LEPT_PARSE_OK;
+    }
+    while (1) {
+        lept_value e;
+        lept_init(&e);
+        if ((ret = lept_parse_value(c, &e)) != LEPT_PARSE_OK) {
+            RET_ARRAY_ERROR(ret);
+        }
+        memcpy(lept_context_push(c, sizeof(lept_value)), &e, sizeof(lept_value));
+        size++;
+        lept_parse_whitespace(c);
+        if (*c->json == ',') {
+            c->json++;
+            lept_parse_whitespace(c);
+        } else if (*c->json == ']') {
+            c->json++;
+            v->type = LEPT_ARRAY;
+            v->u.a.size = size;
+            v->u.a.e = (lept_value *) malloc(size * sizeof(lept_value));
+            memcpy(v->u.a.e, lept_context_pop(c, size * sizeof(lept_value)), size * sizeof(lept_value));
+            return LEPT_PARSE_OK;
+        } else {
+            RET_ARRAY_ERROR(LEPT_PARSE_MISS_COMMA_OR_SQUARE_BRACKET);
+        }
+    }
+}
+
+/* value = null / false / true / number / string / array */
 static int lept_parse_value(lept_context *c, lept_value *v) {
     switch (*c->json) {
         case 'n' :
@@ -252,6 +293,8 @@ static int lept_parse_value(lept_context *c, lept_value *v) {
             return lept_parse_literal(c, v, "false", LEPT_FALSE);
         case '\"' :
             return lept_parse_string(c, v);
+        case '[' :
+            return lept_parse_array(c, v);
         case '\0' :
             return LEPT_PARSE_EXPECT_VALUE;
         default:
