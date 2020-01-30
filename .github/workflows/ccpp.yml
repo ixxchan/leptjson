@@ -12,4 +12,4 @@ jobs:
     - name: build
       run: mkdir build && cd build && cmake .. && make
     - name: test
-      run: cd build && ctest
+      run: cd build && ./leptjson_test
