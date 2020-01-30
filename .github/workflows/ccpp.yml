@@ -6,10 +6,13 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v2
-    - name: build
-      run: mkdir build && cd build && cmake .. && make
-    - name: test
-      run: cd build && ./leptjson_test
+      - uses: actions/checkout@v2
+      - name: build
+        run: mkdir build && cd build && cmake .. && make
+      - name: test
+        run: cd build && ./leptjson_test
+      - name: test_leak
+        run: cd build && valgrind --leak-check=full  ./leptjson_test
+
