@@ -6,20 +6,21 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef LEPT_PARSE_STACK_INIT_SIZE
+#define LEPT_PARSE_STACK_INIT_SIZE 256
+#endif
+
 #define EXPECT(c, ch) do { assert(*(c)->json == (ch)); (c)->json++; } while(0)
 #define ISDIGIT(ch)         ((ch) >= '0' && (ch) <= '9')
 #define ISDIGIT1TO9(ch)     ((ch) >= '1' && (ch) <= '9')
 #define PASS_DIGITS(p) do { while (ISDIGIT(*(p))) { (p)++;} } while(0)
+#define PUTC(c, ch) do { *(char *)lept_context_push((c), 1) = (ch);} while(0)
 
 typedef struct {
     const char *json;
     char *stack;
     size_t size, top;
 } lept_context;
-
-#ifndef LEPT_PARSE_STACK_INIT_SIZE
-#define LEPT_PARSE_STACK_INIT_SIZE 256
-#endif
 
 static void *lept_context_push(lept_context *c, size_t size) {
     void *ret;
@@ -124,10 +125,50 @@ static int lept_parse_number(lept_context *c, lept_value *v) {
     return LEPT_PARSE_OK;
 }
 
-#define PUTC(c, ch) do { *(char *)lept_context_push((c), 1) = (ch);} while(0)
+static const char *lept_parse_hex4(const char *p, unsigned *u) {
+    char ch;
+    *u = 0;
+    for (int _i = 0; _i < 4; ++_i) {
+        ch = *p++;
+        if (ISDIGIT(ch)) {
+            *u = *u * 16 + ch - '0';
+        } else if ('A' <= ch && ch <= 'F') {
+            *u = *u * 16 + ch - 'A' + 10;
+        } else if ('a' <= ch && ch <= 'f') {
+            *u = *u * 16 + ch - 'a' + 10;
+        } else {
+            return NULL;
+        }
+    }
+    return p;
+}
+
+static void lept_encode_utf8(lept_context *c, unsigned u) {
+    assert(u <= 0x10FFFF);
+    if (u <= 0x007F) {
+        PUTC(c, (char) u);
+    } else if (u <= 0x07FF) {
+        PUTC(c, 0xC0u | (u >> 6u)); /* 0xC0 = 11000000 */
+        PUTC(c, 0x80u | (u & 0x3Fu)); /* 0x80 = 10000000, 0x3F = 00111111 */
+    } else if (u <= 0xFFFF) {
+        PUTC(c, 0xE0u | (u >> 12u)); /* 0xE0 = 11100000 */
+        PUTC(c, 0x80u | ((u >> 6u) & 0x3Fu));
+        PUTC(c, 0x80u | (u & 0x3Fu));
+    } else {
+        PUTC(c, 0xF0u | (u >> 18u)); /* 0xF0 = 11110000 */
+        PUTC(c, 0x80u | ((u >> 12u) & 0x3Fu));
+        PUTC(c, 0x80u | ((u >> 6u) & 0x3Fu));
+        PUTC(c, 0x80u | (u & 0x3Fu));
+    }
+}
+
+#define STRING_ERROR(ret) do { c->top = head; return ret; } while(0)
+#define IS_SURROGATE_H(u) ((u) >= 0xD800 && (u) <= 0xDBFF)
+#define IS_SURROGATE_L(u) ((u) >= 0xDC00 && (u) <= 0xDFFF)
 
 static int lept_parse_string(lept_context *c, lept_value *v) {
     size_t head = c->top, len;
+    unsigned u, H, L;
     const char *p;
     EXPECT(c, '\"');
     p = c->json;
@@ -140,8 +181,7 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
                 c->json = p;
                 return LEPT_PARSE_OK;
             case '\0':
-                c->top = head;
-                return LEPT_PARSE_MISS_QUOTATION_MARK;
+                STRING_ERROR(LEPT_PARSE_MISS_QUOTATION_MARK);
             case '\\': // escape
                 switch (*p++) {
                     case '"':
@@ -168,18 +208,34 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
                     case 't':
                         PUTC(c, '\t');
                         break;
-                    case 'u': /* unimplemented*/
+                    case 'u':
+                        if ((p = lept_parse_hex4(p, &u)) == NULL) {
+                            STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
+                        }
+                        if (IS_SURROGATE_H(u)) {
+                            H = u;
+                            if (*p++ != '\\' || *p++ != 'u') { /* expect low surrogate, but it ends */
+                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
+                            }
+                            if ((p = lept_parse_hex4(p, &L)) == NULL) {
+                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_HEX);
+                            }
+                            if (!IS_SURROGATE_L(L)) {
+                                STRING_ERROR(LEPT_PARSE_INVALID_UNICODE_SURROGATE);
+                            }
+                            u = 0x10000 + (H - 0xD800) * 0x400 + (L - 0xDC00);
+                        }
+                        lept_encode_utf8(c, u);
+                        break;
                     default:
-                        c->top = head;
-                        return LEPT_PARSE_INVALID_STRING_ESCAPE;
+                        STRING_ERROR(LEPT_PARSE_INVALID_STRING_ESCAPE);
                 }
                 break;
-            default:
+            default: // unescaped
                 if (ch >= '\x20') {
                     PUTC(c, ch);
                 } else {
-                    c->top = head;
-                    return LEPT_PARSE_INVALID_STRING_CHAR;
+                    STRING_ERROR(LEPT_PARSE_INVALID_STRING_CHAR);
                 }
         }
     }
