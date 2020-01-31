@@ -166,8 +166,8 @@ static void lept_encode_utf8(lept_context *c, unsigned u) {
 #define IS_SURROGATE_H(u) ((u) >= 0xD800 && (u) <= 0xDBFF)
 #define IS_SURROGATE_L(u) ((u) >= 0xDC00 && (u) <= 0xDFFF)
 
-static int lept_parse_string(lept_context *c, lept_value *v) {
-    size_t head = c->top, len;
+static int lept_parse_string_raw(lept_context *c, char **str, size_t *len) {
+    size_t head = c->top;
     unsigned u, H, L;
     const char *p;
     EXPECT(c, '\"');
@@ -176,8 +176,8 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
         char ch = *p++;
         switch (ch) {
             case '\"':
-                len = c->top - head;
-                lept_set_string(v, (const char *) lept_context_pop(c, len), len);
+                *len = c->top - head;
+                *str = (char *) lept_context_pop(c, *len);
                 c->json = p;
                 return LEPT_PARSE_OK;
             case '\0':
@@ -239,6 +239,16 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
                 }
         }
     }
+}
+
+static int lept_parse_string(lept_context *c, lept_value *v) {
+    int ret;
+    char *str;
+    size_t len;
+    if ((ret = lept_parse_string_raw(c, &str, &len)) == LEPT_PARSE_OK) {
+        lept_set_string(v, str, len);
+    }
+    return ret;
 }
 
 static int lept_parse_value(lept_context *c, lept_value *v);
