@@ -177,7 +177,9 @@ static int lept_parse_string_raw(lept_context *c, char **str, size_t *len) {
         switch (ch) {
             case '\"':
                 *len = c->top - head;
-                *str = (char *) lept_context_pop(c, *len);
+                *str = (char *) malloc(*len + 1);
+                memcpy(*str, lept_context_pop(c, *len), *len);
+                (*str)[*len] = '\0';
                 c->json = p;
                 return LEPT_PARSE_OK;
             case '\0':
@@ -246,7 +248,11 @@ static int lept_parse_string(lept_context *c, lept_value *v) {
     char *str;
     size_t len;
     if ((ret = lept_parse_string_raw(c, &str, &len)) == LEPT_PARSE_OK) {
-        lept_set_string(v, str, len);
+//        lept_set_string(v, str, len);
+        /* lept_set_string will copy string, so simply transfer ownership may be better */
+        v->u.s.s = str;
+        v->u.s.len = len;
+        v->type = LEPT_STRING;
     }
     return ret;
 }
