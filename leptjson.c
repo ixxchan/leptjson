@@ -529,6 +529,7 @@ lept_value *lept_get_object_value(const lept_value *v, size_t index) {
     return &v->u.o.m[index].v;
 }
 
+#if 0
 /* stringify one utf-8 encoded unicode character */
 static void lept_stringify_utf8(lept_context *c, char **s) {
     unsigned u, H, L;
@@ -563,6 +564,7 @@ static void lept_stringify_utf8(lept_context *c, char **s) {
         PUTF(c, "\\u%04ux\\u%04ux", 12, H, L);
     }
 }
+#endif
 
 static int lept_stringify_string(lept_context *c, char *s, size_t len) {
     PUTC(c, '\"');
@@ -574,9 +576,6 @@ static int lept_stringify_string(lept_context *c, char *s, size_t len) {
                 break;
             case '\\':
                 PUTS(c, "\\\\", 2);
-                break;
-            case '/':
-                PUTC(c, '/');
                 break;
             case '\b':
                 PUTS(c, "\\b", 2);
@@ -594,7 +593,13 @@ static int lept_stringify_string(lept_context *c, char *s, size_t len) {
                 PUTS(c, "\\t", 2);
                 break;
             default:
-                lept_stringify_utf8(c, &p);
+//                lept_stringify_utf8(c, &p);
+                /* output UTF-8 bytes, do not decode */
+                if (ch < 0x20) { /* \u00xx */
+                    sprintf(lept_context_push(c, 6), "\\u00%02u", ch);
+                } else {
+                    PUTC(c, ch);
+                }
         }
     }
     PUTC(c, '\"');
