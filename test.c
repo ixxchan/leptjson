@@ -408,7 +408,7 @@ static void test_parse() {
         size_t length;\
         lept_init(&v);\
         EXPECT_EQ_INT(LEPT_PARSE_OK, lept_parse(&v, json));\
-        EXPECT_EQ_INT(LEPT_STRINGIFY_OK, lept_stringify(&v, &json2, &length));\
+        json2 = lept_stringify(&v, &length);\
         EXPECT_EQ_STRING(json, json2, length);\
         lept_free(&v);\
         free(json2);\

@@ -566,7 +566,7 @@ static void lept_stringify_utf8(lept_context *c, char **s) {
 }
 #endif
 
-static int lept_stringify_string(lept_context *c, char *s, size_t len) {
+static void lept_stringify_string(lept_context *c, char *s, size_t len) {
     PUTC(c, '\"');
     for (char *p = s; p - s < len; ++p) {
         char ch = *p;
@@ -603,10 +603,9 @@ static int lept_stringify_string(lept_context *c, char *s, size_t len) {
         }
     }
     PUTC(c, '\"');
-    return LEPT_STRINGIFY_OK;
 }
 
-static int lept_stringify_value(lept_context *c, const lept_value *v) {
+static void lept_stringify_value(lept_context *c, const lept_value *v) {
     switch (v->type) {
         case LEPT_NULL:
             PUTS(c, "null", 4);
@@ -643,24 +642,16 @@ static int lept_stringify_value(lept_context *c, const lept_value *v) {
             PUTC(c, '}');
             break;
     }
-    return LEPT_STRINGIFY_OK;
 }
 
-int lept_stringify(const lept_value *v, char **json, size_t *length) {
+char *lept_stringify(const lept_value *v, size_t *length) {
     lept_context c;
-    int ret;
     assert(v != NULL);
-    assert(json != NULL);
     c.stack = (char *) malloc(c.size = LEPT_PARSE_STRINGIFY_INIT_SIZE);
     c.top = 0;
-    if ((ret = lept_stringify_value(&c, v)) != LEPT_STRINGIFY_OK) {
-        free(c.stack);
-        *json = NULL;
-        return ret;
-    }
+    lept_stringify_value(&c, v);
     if (length)
         *length = c.top;
     PUTC(&c, '\0');
-    *json = c.stack;
-    return LEPT_STRINGIFY_OK;
+    return c.stack;
 }
