@@ -67,6 +67,12 @@ lept_type lept_get_type(const lept_value *v);
 
 void lept_free(lept_value *v);
 
+void lept_copy(lept_value *dst, const lept_value *src);
+
+void lept_move(lept_value *dst, lept_value *src);
+
+void lept_swap(lept_value *lhs, lept_value *rhs);
+
 
 #define lept_set_null(v) lept_free(v)
 
