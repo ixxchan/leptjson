@@ -535,21 +535,21 @@ static void lept_stringify_utf8(lept_context *c, char **s) {
     unsigned u, H, L;
     unsigned char ch = **s;
     if (ch < 0x20) { /* \u00xx */
-        sprintf(lept_context_push(c, 6), "\\u00%02u", ch);
+        sprintf(lept_context_push(c, 6), "\\u%04X", ch);
     } else if (ch < 0x007f) {
         PUTC(c, ch);
     } else if (ch >> 5u == 6) { /* U+0080 ~ U+07FF, 110xxxxx 10xxxxxx */
         u = ch & 0x3Fu; /* 0x1F = 00011111 */
         ch = *(*s)++;
         u = (u << 6u) | (0x3Fu & ch); /* 0x3F = 00111111 */
-        PUTF(c, "\\u%04ux", 6, u);
+        PUTF(c, "\\u%04X", 6, u);
     } else if (ch >> 4u == 14) { /* U+0800 ~ U+FFFF, 1110xxxx 10xxxxxx 10xxxxxx */
         u = ch & 0xFu;
         ch = *(*s)++;
         u = (u << 4u) | (0x3Fu & ch);
         ch = *(*s)++;
         u = (u << 6u) | (0x3Fu & ch);
-        PUTF(c, "\\u%04ux", 6, u);
+        PUTF(c, "\\u%04X", 6, u);
     } else { /* U+10000 ~ U+10FFFF, 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
         u = ch & 0x7u;
         ch = *(*s)++;
@@ -561,7 +561,7 @@ static void lept_stringify_utf8(lept_context *c, char **s) {
         u -= 0x10000;
         H = ((u >> 10u) & 0x3FFu) + 0xD800; /* 0x3FF = 1111111111, 10bits */
         L = (u & 0x3FFu) + 0xDC00;
-        PUTF(c, "\\u%04ux\\u%04ux", 12, H, L);
+        PUTF(c, "\\u%04X\\u%04X", 12, H, L);
     }
 }
 #endif
@@ -596,7 +596,7 @@ static int lept_stringify_string(lept_context *c, char *s, size_t len) {
 //                lept_stringify_utf8(c, &p);
                 /* output UTF-8 bytes, do not decode */
                 if (ch < 0x20) { /* \u00xx */
-                    sprintf(lept_context_push(c, 6), "\\u00%02u", ch);
+                    sprintf(lept_context_push(c, 6), "\\u%04X", ch);
                 } else {
                     PUTC(c, ch);
                 }
