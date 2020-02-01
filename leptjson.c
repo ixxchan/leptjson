@@ -529,6 +529,20 @@ lept_value *lept_get_object_value(const lept_value *v, size_t index) {
     return &v->u.o.m[index].v;
 }
 
+size_t lept_find_object_index(const lept_value *v, const char *key, size_t klen) {
+    size_t i;
+    assert(v != NULL && v->type == LEPT_OBJECT && key != NULL);
+    for (i = 0; i < v->u.o.size; i++)
+        if (v->u.o.m[i].klen == klen && memcmp(v->u.o.m[i].k, key, klen) == 0)
+            return i;
+    return LEPT_KEY_NOT_EXIST;
+}
+
+lept_value *lept_find_object_value(const lept_value *v, const char *key, size_t klen) {
+    size_t index = lept_find_object_index(v, key, klen);
+    return index != LEPT_KEY_NOT_EXIST ? &v->u.o.m[index].v : NULL;
+}
+
 #if 0
 /* stringify one utf-8 encoded unicode character */
 static void lept_stringify_utf8(lept_context *c, char **s) {
@@ -654,4 +668,40 @@ char *lept_stringify(const lept_value *v, size_t *length) {
         *length = c.top;
     PUTC(&c, '\0');
     return c.stack;
+}
+
+int lept_is_equal(const lept_value *lhs, const lept_value *rhs) {
+    assert(lhs && rhs);
+    if (lhs->type != rhs->type)
+        return 0;
+    switch (lhs->type) {
+        case LEPT_NUMBER:
+            return lhs->u.n == rhs->u.n;
+        case LEPT_STRING:
+            return lhs->u.s.len == rhs->u.s.len && 0 == memcmp(lhs->u.s.s, rhs->u.s.s, lhs->u.s.len);
+        case LEPT_ARRAY:
+            if (lhs->u.a.size != rhs->u.a.size) {
+                return 0;
+            }
+            for (size_t i = 0; i < lhs->u.a.size; ++i) {
+                if (!lept_is_equal(&lhs->u.a.e[i], &rhs->u.a.e[i])) {
+                    return 0;
+                }
+            }
+            return 1;
+        case LEPT_OBJECT:
+            if (lhs->u.o.size != rhs->u.o.size) {
+                return 0;
+            }
+            for (size_t i = 0; i < lhs->u.o.size; ++i) {
+                lept_member *ml = &lhs->u.o.m[i];
+                lept_value *vr = lept_find_object_value(rhs, ml->k, ml->klen);
+                if (vr == NULL || !lept_is_equal(&ml->v, vr)) {
+                    return 0;
+                }
+            }
+            return 1;
+        default:
+            return 1;
+    }
 }

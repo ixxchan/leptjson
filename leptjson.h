@@ -52,8 +52,14 @@ enum {
     LEPT_PARSE_MISS_COMMA_OR_CURLY_BRACKET,
 };
 
+#define LEPT_KEY_NOT_EXIST ((size_t)-1)
+
 /* Parse string json into v. If fail, set v to LEPT_NULL */
 int lept_parse(lept_value *v, const char *json);
+
+char *lept_stringify(const lept_value *v, size_t *length);
+
+int lept_is_equal(const lept_value *lhs, const lept_value *rhs);
 
 lept_type lept_get_type(const lept_value *v);
 
@@ -95,7 +101,8 @@ size_t lept_get_object_key_length(const lept_value *v, size_t index);
 
 lept_value *lept_get_object_value(const lept_value *v, size_t index);
 
+size_t lept_find_object_index(const lept_value *v, const char *key, size_t klen);
 
-char *lept_stringify(const lept_value *v, size_t *length);
+lept_value *lept_find_object_value(const lept_value *v, const char *key, size_t klen);
 
 #endif //LEPTJSON_LEPTJSON_H
